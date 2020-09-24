@@ -73,6 +73,7 @@ public:
   using read_ptr_type = std::unique_ptr<T, do_release>;
 
   // select a buffer not being read for write
+  // returns nullptr if failed
   write_ptr_type select() {
     std::lock_guard<std::mutex> lock(m_);
     int i = 0;
