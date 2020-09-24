@@ -9,6 +9,7 @@
 
 template <typename T, int num_bufs>
 class TBuffer : public std::enable_shared_from_this<TBuffer<T, num_bufs>> {
+
   // dispatch the buffer borrowed for write
   class do_dispatch {
     std::weak_ptr<TBuffer<T, num_bufs>> tbuffer_;
@@ -16,7 +17,7 @@ class TBuffer : public std::enable_shared_from_this<TBuffer<T, num_bufs>> {
   public:
     do_dispatch(const std::shared_ptr<TBuffer<T, num_bufs>> &sp)
         : tbuffer_(sp) {}
-    
+
     void operator()(T *p) const {
       if (p == nullptr)
         return;
@@ -35,7 +36,7 @@ class TBuffer : public std::enable_shared_from_this<TBuffer<T, num_bufs>> {
   public:
     do_release(const std::shared_ptr<TBuffer<T, num_bufs>> &sp)
         : tbuffer_(sp) {}
-    
+
     void operator()(T *p) const {
       if (p == nullptr)
         return;
@@ -54,14 +55,18 @@ class TBuffer : public std::enable_shared_from_this<TBuffer<T, num_bufs>> {
   bool stopped_;
   std::array<std::unique_ptr<T>, num_bufs> arr_;
 
-public:
   // init a tbuffer struct
-  template <typename... Args>
-  TBuffer(Args &&... args) : pending_idx_(-1) {
+  template <typename... Args> TBuffer(Args &&... args) : pending_idx_(-1) {
     reading_ = std::vector<bool>(num_bufs, false);
     for (int i = 0; i < num_bufs; ++i) {
       arr_[i] = (std::make_unique<T>(std::forward<Args>(args)...));
     }
+  }
+
+public:
+  template <typename... Args>
+  static std::shared_ptr<TBuffer<T, num_bufs>> make(Args &&... args) {
+    return std::shared_ptr<TBuffer<T, num_bufs>>(new TBuffer(std::forward<Args>(args)...));
   }
 
   using write_ptr_type = std::unique_ptr<T, do_dispatch>;
@@ -130,7 +135,7 @@ public:
     read_ptr_type tmp{arr_[ret].release(), this->shared_from_this()};
     return tmp;
   }
-  
+
   // release a buffer after reading/processing
   void release(std::unique_ptr<T> elem) {
     std::lock_guard<std::mutex> lock(m_);
